@@ -4,59 +4,56 @@ import * as _ from 'lodash';
 
 const ec = new ecdsa.ec('secp256k1');
 
-const COINBASE_AMOUNT: number = 50;
-
-class UnspentTxOut {
-    public readonly txOutId: string;
-    public readonly txOutIndex: number;
-    public readonly address: string;
-    public readonly amount: number;
-
-    constructor(txOutId: string, txOutIndex: number, address: string, amount: number) {
-        this.txOutId = txOutId;
-        this.txOutIndex = txOutIndex;
-        this.address = address;
-        this.amount = amount;
-    }
+enum TransType {
+    DEPOSIT = 0,
+    WITHDRAW = 1,
+    LEND = 2,
+    PAY = 3
 }
 
-class TxIn {
-    public txOutId: string;
-    public txOutIndex: number;
-    public signature: string;
-}
-
-class TxOut {
-    public address: string;
+class TxDCF {
+    public wallet: string;
+    public walletKey: string;
+    public walletOwner: string;
     public amount: number;
+    public month: number;
+    public year: number;
+    public type: number;
+    public timestamp: number;
 
-    constructor(address: string, amount: number) {
-        this.address = address;
+    constructor(wallet: string, walletKey: string, walletOwner: string, amount: number, month: number, year: number, type: number, timestamp: number) {
+        this.wallet = wallet;
+        this.walletKey = walletKey;
+        this.walletOwner = walletOwner;
         this.amount = amount;
+        this.month = month;
+        this.year = year;
+        this.type = type;
+        this.timestamp = timestamp;
     }
 }
 
 class Transaction {
-
     public id: string;
-
-    public txIns: TxIn[];
-    public txOuts: TxOut[];
+    public txDCFs: TxDCF[];
+    public isApproved: boolean;
+    public signature: string;
 }
 
 const getTransactionId = (transaction: Transaction): string => {
-    const txInContent: string = transaction.txIns
-        .map((txIn: TxIn) => txIn.txOutId + txIn.txOutIndex)
+    const txDCFContent: string = transaction.txDCFs
+        .map((txDCF: TxDCF) => {
+            return (
+                txDCF.wallet + txDCF.walletKey + txDCF.walletOwner +
+                txDCF.amount + txDCF.month + txDCF.year +
+                txDCF.type + txDCF.timestamp);
+        })
         .reduce((a, b) => a + b, '');
 
-    const txOutContent: string = transaction.txOuts
-        .map((txOut: TxOut) => txOut.address + txOut.amount)
-        .reduce((a, b) => a + b, '');
-
-    return CryptoJS.SHA256(txInContent + txOutContent).toString();
+    return CryptoJS.SHA256(txDCFContent).toString();
 };
 
-const validateTransaction = (transaction: Transaction, aUnspentTxOuts: UnspentTxOut[]): boolean => {
+const validateTransaction = (transaction: Transaction): boolean => {
 
     if (!isValidTransactionStructure(transaction)) {
         return false;
@@ -66,61 +63,27 @@ const validateTransaction = (transaction: Transaction, aUnspentTxOuts: UnspentTx
         console.log('invalid tx id: ' + transaction.id);
         return false;
     }
-    const hasValidTxIns: boolean = transaction.txIns
-        .map((txIn) => validateTxIn(txIn, transaction, aUnspentTxOuts))
+    const hasValidTxDCFs: boolean = transaction.txDCFs
+        .map((txDCF) => validateTxDCF(txDCF, transaction))
         .reduce((a, b) => a && b, true);
 
-    if (!hasValidTxIns) {
-        console.log('some of the txIns are invalid in tx: ' + transaction.id);
-        return false;
-    }
-
-    const totalTxInValues: number = transaction.txIns
-        .map((txIn) => getTxInAmount(txIn, aUnspentTxOuts))
-        .reduce((a, b) => (a + b), 0);
-
-    const totalTxOutValues: number = transaction.txOuts
-        .map((txOut) => txOut.amount)
-        .reduce((a, b) => (a + b), 0);
-
-    if (totalTxOutValues !== totalTxInValues) {
-        console.log('totalTxOutValues !== totalTxInValues in tx: ' + transaction.id);
+    if (!hasValidTxDCFs) {
+        console.log('txDCFs are invalid in tx: ' + transaction.id);
         return false;
     }
 
     return true;
 };
-
-const validateBlockTransactions = (aTransactions: Transaction[], aUnspentTxOuts: UnspentTxOut[], blockIndex: number): boolean => {
-    const coinbaseTx = aTransactions[0];
-    if (!validateCoinbaseTx(coinbaseTx, blockIndex)) {
-        console.log('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx));
-        return false;
-    }
-
-    // check for duplicate txIns. Each txIn can be included only once
-    const txIns: TxIn[] = _(aTransactions)
-        .map((tx) => tx.txIns)
-        .flatten()
-        .value();
-
-    if (hasDuplicates(txIns)) {
-        return false;
-    }
-
-    // all but coinbase transactions
-    const normalTransactions: Transaction[] = aTransactions.slice(1);
-    return normalTransactions.map((tx) => validateTransaction(tx, aUnspentTxOuts))
-        .reduce((a, b) => (a && b), true);
-
-};
-
-const hasDuplicates = (txIns: TxIn[]): boolean => {
-    const groups = _.countBy(txIns, (txIn: TxIn) => txIn.txOutId + txIn.txOutIndex);
+const hasDuplicates = (txDCFs: TxDCF[]): boolean => {
+    const groups = _.countBy(txDCFs, (txDCF: TxDCF) => {
+        return (
+            txDCF.wallet + txDCF.walletKey + txDCF.walletOwner + txDCF.amount + txDCF.month + txDCF.year + txDCF.type
+        );
+    });
     return _(groups)
         .map((value, key) => {
             if (value > 1) {
-                console.log('duplicate txIn: ' + key);
+                console.log('duplicate txDCF: ' + key);
                 return true;
             } else {
                 return false;
@@ -129,122 +92,8 @@ const hasDuplicates = (txIns: TxIn[]): boolean => {
         .includes(true);
 };
 
-const validateCoinbaseTx = (transaction: Transaction, blockIndex: number): boolean => {
-    if (transaction == null) {
-        console.log('the first transaction in the block must be coinbase transaction');
-        return false;
-    }
-    if (getTransactionId(transaction) !== transaction.id) {
-        console.log('invalid coinbase tx id: ' + transaction.id);
-        return false;
-    }
-    if (transaction.txIns.length !== 1) {
-        console.log('one txIn must be specified in the coinbase transaction');
-        return;
-    }
-    if (transaction.txIns[0].txOutIndex !== blockIndex) {
-        console.log('the txIn signature in coinbase tx must be the block height');
-        return false;
-    }
-    if (transaction.txOuts.length !== 1) {
-        console.log('invalid number of txOuts in coinbase transaction');
-        return false;
-    }
-    if (transaction.txOuts[0].amount !== COINBASE_AMOUNT) {
-        console.log('invalid coinbase amount in coinbase transaction');
-        return false;
-    }
+const validateTxDCF = (txDCF: TxDCF, transaction: Transaction): boolean => {
     return true;
-};
-
-const validateTxIn = (txIn: TxIn, transaction: Transaction, aUnspentTxOuts: UnspentTxOut[]): boolean => {
-    const referencedUTxOut: UnspentTxOut =
-        aUnspentTxOuts.find((uTxO) => uTxO.txOutId === txIn.txOutId && uTxO.txOutIndex === txIn.txOutIndex);
-    if (referencedUTxOut == null) {
-        console.log('referenced txOut not found: ' + JSON.stringify(txIn));
-        return false;
-    }
-    const address = referencedUTxOut.address;
-
-    const key = ec.keyFromPublic(address, 'hex');
-    const validSignature: boolean = key.verify(transaction.id, txIn.signature);
-    if (!validSignature) {
-        console.log('invalid txIn signature: %s txId: %s address: %s', txIn.signature, transaction.id, referencedUTxOut.address);
-        return false;
-    }
-    return true;
-};
-
-const getTxInAmount = (txIn: TxIn, aUnspentTxOuts: UnspentTxOut[]): number => {
-    return findUnspentTxOut(txIn.txOutId, txIn.txOutIndex, aUnspentTxOuts).amount;
-};
-
-const findUnspentTxOut = (transactionId: string, index: number, aUnspentTxOuts: UnspentTxOut[]): UnspentTxOut => {
-    return aUnspentTxOuts.find((uTxO) => uTxO.txOutId === transactionId && uTxO.txOutIndex === index);
-};
-
-const getCoinbaseTransaction = (address: string, blockIndex: number): Transaction => {
-    const t = new Transaction();
-    const txIn: TxIn = new TxIn();
-    txIn.signature = '';
-    txIn.txOutId = '';
-    txIn.txOutIndex = blockIndex;
-
-    t.txIns = [txIn];
-    t.txOuts = [new TxOut(address, COINBASE_AMOUNT)];
-    t.id = getTransactionId(t);
-    return t;
-};
-
-const signTxIn = (transaction: Transaction, txInIndex: number,
-                  privateKey: string, aUnspentTxOuts: UnspentTxOut[]): string => {
-    const txIn: TxIn = transaction.txIns[txInIndex];
-
-    const dataToSign = transaction.id;
-    const referencedUnspentTxOut: UnspentTxOut = findUnspentTxOut(txIn.txOutId, txIn.txOutIndex, aUnspentTxOuts);
-    if (referencedUnspentTxOut == null) {
-        console.log('could not find referenced txOut');
-        throw Error();
-    }
-    const referencedAddress = referencedUnspentTxOut.address;
-
-    if (getPublicKey(privateKey) !== referencedAddress) {
-        console.log('trying to sign an input with private' +
-            ' key that does not match the address that is referenced in txIn');
-        throw Error();
-    }
-    const key = ec.keyFromPrivate(privateKey, 'hex');
-    const signature: string = toHexString(key.sign(dataToSign).toDER());
-
-    return signature;
-};
-
-const updateUnspentTxOuts = (aTransactions: Transaction[], aUnspentTxOuts: UnspentTxOut[]): UnspentTxOut[] => {
-    const newUnspentTxOuts: UnspentTxOut[] = aTransactions
-        .map((t) => {
-            return t.txOuts.map((txOut, index) => new UnspentTxOut(t.id, index, txOut.address, txOut.amount));
-        })
-        .reduce((a, b) => a.concat(b), []);
-
-    const consumedTxOuts: UnspentTxOut[] = aTransactions
-        .map((t) => t.txIns)
-        .reduce((a, b) => a.concat(b), [])
-        .map((txIn) => new UnspentTxOut(txIn.txOutId, txIn.txOutIndex, '', 0));
-
-    const resultingUnspentTxOuts = aUnspentTxOuts
-        .filter(((uTxO) => !findUnspentTxOut(uTxO.txOutId, uTxO.txOutIndex, consumedTxOuts)))
-        .concat(newUnspentTxOuts);
-
-    return resultingUnspentTxOuts;
-};
-
-const processTransactions = (aTransactions: Transaction[], aUnspentTxOuts: UnspentTxOut[], blockIndex: number) => {
-
-    if (!validateBlockTransactions(aTransactions, aUnspentTxOuts, blockIndex)) {
-        console.log('invalid block transactions');
-        return null;
-    }
-    return updateUnspentTxOuts(aTransactions, aUnspentTxOuts);
 };
 
 const toHexString = (byteArray): string => {
@@ -257,36 +106,33 @@ const getPublicKey = (aPrivateKey: string): string => {
     return ec.keyFromPrivate(aPrivateKey, 'hex').getPublic().encode('hex');
 };
 
-const isValidTxInStructure = (txIn: TxIn): boolean => {
-    if (txIn == null) {
-        console.log('txIn is null');
+const isValidTxDCFStructure = (txDCF: TxDCF): boolean => {
+    if (txDCF == null) {
+        console.log('txDCF is null');
         return false;
-    } else if (typeof txIn.signature !== 'string') {
-        console.log('invalid signature type in txIn');
+    } else if (typeof txDCF.wallet !== 'string') {
+        console.log('invalid address type in txDCF');
         return false;
-    } else if (typeof txIn.txOutId !== 'string') {
-        console.log('invalid txOutId type in txIn');
+    } else if (!isValidAddress(txDCF.wallet)) {
+        console.log('invalid DCF address in txDCF');
         return false;
-    } else if (typeof  txIn.txOutIndex !== 'number') {
-        console.log('invalid txOutIndex type in txIn');
+    } else if (typeof txDCF.walletKey !== 'string') {
+        console.log('invalid wallet key type in txDCF');
         return false;
-    } else {
-        return true;
-    }
-};
-
-const isValidTxOutStructure = (txOut: TxOut): boolean => {
-    if (txOut == null) {
-        console.log('txOut is null');
+    } else if (typeof txDCF.walletOwner !== 'string') {
+        console.log('invalid owner type in txDCF');
         return false;
-    } else if (typeof txOut.address !== 'string') {
-        console.log('invalid address type in txOut');
+    } else if (typeof txDCF.amount !== 'number') {
+        console.log('invalid amount type in txDCF');
         return false;
-    } else if (!isValidAddress(txOut.address)) {
-        console.log('invalid TxOut address');
+    } else if (typeof txDCF.month !== 'number') {
+        console.log('invalid month type in txDCF');
         return false;
-    } else if (typeof txOut.amount !== 'number') {
-        console.log('invalid amount type in txOut');
+    } else if (typeof txDCF.year !== 'number') {
+        console.log('invalid year type in txDCF');
+        return false;
+    } else if (typeof txDCF.type !== 'number') {
+        console.log('invalid transaction type in txDCF');
         return false;
     } else {
         return true;
@@ -298,47 +144,35 @@ const isValidTransactionStructure = (transaction: Transaction) => {
         console.log('transactionId missing');
         return false;
     }
-    if (!(transaction.txIns instanceof Array)) {
-        console.log('invalid txIns type in transaction');
+    if (!(transaction.txDCFs instanceof Array)) {
+        console.log('invalid txDCFs type in transaction');
         return false;
     }
-    if (!transaction.txIns
-            .map(isValidTxInStructure)
+    if (!transaction.txDCFs
+            .map(isValidTxDCFStructure)
             .reduce((a, b) => (a && b), true)) {
         return false;
     }
 
-    if (!(transaction.txOuts instanceof Array)) {
-        console.log('invalid txIns type in transaction');
-        return false;
-    }
-
-    if (!transaction.txOuts
-            .map(isValidTxOutStructure)
-            .reduce((a, b) => (a && b), true)) {
-        return false;
-    }
     return true;
 };
 
 // valid address is a valid ecdsa public key in the 04 + X-coordinate + Y-coordinate format
 const isValidAddress = (address: string): boolean => {
-    if (address.length !== 130) {
+    if (address.length !== 34) {
         console.log(address);
-        console.log('invalid public key length');
+        console.log('invalid DCF address length');
         return false;
-    } else if (address.match('^[a-fA-F0-9]+$') === null) {
-        console.log('public key must contain only hex characters');
+    } else if (address.match('^[a-zA-Z0-9]+$') === null) {
+        console.log('DCF address must contain only alphanumeric characters');
         return false;
-    } else if (!address.startsWith('04')) {
-        console.log('public key must start with 04');
+    } else if (!address.startsWith('d')) {
+        console.log('DCF address must start with d');
         return false;
     }
     return true;
 };
 
 export {
-    processTransactions, signTxIn, getTransactionId, isValidAddress, validateTransaction,
-    UnspentTxOut, TxIn, TxOut, getCoinbaseTransaction, getPublicKey, hasDuplicates,
-    Transaction
+    getTransactionId, isValidAddress, validateTransaction, Transaction, TransType, TxDCF
 };

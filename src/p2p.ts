@@ -5,7 +5,6 @@ import {
     replaceChain
 } from './blockchain';
 import {Transaction} from './transaction';
-import {getTransactionPool} from './transactionPool';
 
 const sockets: WebSocket[] = [];
 
@@ -128,7 +127,8 @@ const queryTransactionPoolMsg = (): Message => ({
 
 const responseTransactionPoolMsg = (): Message => ({
     'type': MessageType.RESPONSE_TRANSACTION_POOL,
-    'data': JSON.stringify(getTransactionPool())
+    // 'data': JSON.stringify(getTransactionPool())
+    'data': ''
 });
 
 const initErrorHandler = (ws: WebSocket) => {
