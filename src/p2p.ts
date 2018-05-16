@@ -1,10 +1,11 @@
 import * as WebSocket from 'ws';
 import {Server} from 'ws';
 import {
-    addBlockToChain, Block, getBlockchain, getLatestBlock, handleReceivedTransaction, isValidBlockStructure,
-    replaceChain
+    addBlockToChain, Block, getBlockchain, getLatestBlock,
+    handleReceivedTransaction, isValidBlockStructure, replaceChain
 } from './blockchain';
 import {Transaction} from './transaction';
+import {getTransactionPool} from './transactionPool';
 
 const sockets: WebSocket[] = [];
 
@@ -127,8 +128,7 @@ const queryTransactionPoolMsg = (): Message => ({
 
 const responseTransactionPoolMsg = (): Message => ({
     'type': MessageType.RESPONSE_TRANSACTION_POOL,
-    // 'data': JSON.stringify(getTransactionPool())
-    'data': ''
+    'data': JSON.stringify(getTransactionPool())
 });
 
 const initErrorHandler = (ws: WebSocket) => {
@@ -147,7 +147,7 @@ const handleBlockchainResponse = (receivedBlocks: Block[]) => {
     }
     const latestBlockReceived: Block = receivedBlocks[receivedBlocks.length - 1];
     if (!isValidBlockStructure(latestBlockReceived)) {
-        console.log('block structuture not valid');
+        console.log('block structure not valid');
         return;
     }
     const latestBlockHeld: Block = getLatestBlock();

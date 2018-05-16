@@ -2,7 +2,7 @@ import * as bodyParser from 'body-parser';
 import * as express from 'express';
 import * as _ from 'lodash';
 import {
-    Balance, Block, generateNextBlock, generatenextBlockWithTransaction, generateRawNextBlock, getAccountBalance,
+    Balance, Block, generateNextBlock, generateRawNextBlock, getAccountBalance, getBalances,
     getBlockchain, removeTransaction, sendTransaction
 } from './blockchain';
 import {connectToPeers, getSockets, initP2PServer} from './p2p';
@@ -75,6 +75,11 @@ const initHttpServer = (myHttpPort: number) => {
         } else {
             res.send(newBlock);
         }
+    });
+
+    app.get('/balances', (req, res) => {
+        const balances: Balance[] = getBalances();
+        res.send(balances);
     });
 
     app.get('/balance/:address', (req, res) => {

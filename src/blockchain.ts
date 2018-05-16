@@ -7,7 +7,7 @@ import {
     getTransactionId, Transaction, TransType, TxDCF
 } from './transaction';
 import {
-    addToTransactionPool, removeFromTransactionPool, getTransactionPool, updateTransactionPool
+    addToTransactionPool, getTransactionPool, removeFromTransactionPool, updateTransactionPool
 } from './transactionPool';
 import {hexToBinary} from './util';
 import {createTransaction} from './wallet';
@@ -192,7 +192,7 @@ const generateNextBlock = (txId: string, signature: string, isApproved: boolean)
     return generateRawNextBlock(blockData, isApproved);
 };
 
-const generatenextBlockWithTransaction = (receiverAddress: string, amount: number) => {
+const generateNextBlockWithTransaction = (receiverAddress: string, amount: number) => {
 };
 
 const findBlock = (index: number, previousHash: string, timestamp: number, data: Transaction[], blockBalances: Balance[],
@@ -205,6 +205,11 @@ const findBlock = (index: number, previousHash: string, timestamp: number, data:
         }
         nonce++;
     }
+};
+
+const getBalances = (): Balance[] => {
+    const lastestBlock: Block = getLatestBlock();
+    return lastestBlock.balances;
 };
 
 const getAccountBalance = (address: string): Balance => {
@@ -384,8 +389,8 @@ export {
     removeTransaction,
     generateRawNextBlock,
     generateNextBlock,
-    generatenextBlockWithTransaction,
     handleReceivedTransaction,
+    getBalances,
     getAccountBalance,
     isValidBlockStructure,
     replaceChain,
