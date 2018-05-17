@@ -74,6 +74,24 @@ const validateTransaction = (transaction: Transaction): boolean => {
 
     return true;
 };
+
+const validateBlockTransactions = (aTransactions: Transaction[], blockIndex: number): boolean => {
+    // check for duplicate txDCFs. Each txDCF can be included only once
+    const txDCFs: TxDCF[] = _(aTransactions)
+        .map((tx) => tx.txDCFs)
+        .flatten()
+        .value();
+
+    if (hasDuplicates(txDCFs)) {
+        return false;
+    }
+
+    // all transactions
+    const normalTransactions: Transaction[] = aTransactions.slice(0);
+    return normalTransactions.map((tx) => validateTransaction(tx))
+        .reduce((a, b) => (a && b), true);
+};
+
 const hasDuplicates = (txDCFs: TxDCF[]): boolean => {
     const groups = _.countBy(txDCFs, (txDCF: TxDCF) => {
         return (
@@ -174,5 +192,5 @@ const isValidAddress = (address: string): boolean => {
 };
 
 export {
-    getTransactionId, isValidAddress, validateTransaction, Transaction, TransType, TxDCF
+    getTransactionId, isValidAddress, validateTransaction, validateBlockTransactions, Transaction, TransType, TxDCF
 };

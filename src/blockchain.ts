@@ -4,7 +4,7 @@ import * as loadJsonFile from 'load-json-file';
 import * as _ from 'lodash';
 import {broadcastLatest, broadCastTransactionPool} from './p2p';
 import {
-    getTransactionId, Transaction, TransType, TxDCF
+    getTransactionId, Transaction, TransType, TxDCF, validateBlockTransactions
 } from './transaction';
 import {
     addToTransactionPool, getTransactionPool, removeFromTransactionPool, updateTransactionPool
@@ -315,18 +315,22 @@ const hashMatchesDifficulty = (hash: string, difficulty: number): boolean => {
     return hashInBinary.startsWith(requiredPrefix);
 };
 
-// Checks if the given blockchain is valid. Return the unspent txOuts if the chain is valid
+// Checks if the given blockchain is valid.
 const isValidChain = (blockchainToValidate: Block[]): boolean => {
     const isValidGenesis = (block: Block): boolean => {
         return JSON.stringify(block) === JSON.stringify(genesisBlock);
     };
     if (!isValidGenesis(blockchainToValidate[0])) {
-        return null;
+        return false;
     }
     for (let i = 0; i < blockchainToValidate.length; i++) {
         const currentBlock: Block = blockchainToValidate[i];
         if (i !== 0 && !isValidNewBlock(blockchainToValidate[i], blockchainToValidate[i - 1])) {
-            return null;
+            return false;
+        }
+        if (!validateBlockTransactions(currentBlock.data, currentBlock.index)) {
+            console.log('invalid block transactions');
+            return false;
         }
     }
     return true;
@@ -343,8 +347,7 @@ const addBlockToChain = (newBlock: Block): boolean => {
 };
 
 const replaceChain = (newBlocks: Block[]) => {
-    const aUnspentTxOuts = isValidChain(newBlocks);
-    const validChain: boolean = aUnspentTxOuts !== null;
+    const validChain = isValidChain(newBlocks);
     if (validChain &&
         getAccumulatedDifficulty(newBlocks) > getAccumulatedDifficulty(getBlockchain())) {
         console.log('Received blockchain is valid. Replacing current blockchain with received blockchain');
