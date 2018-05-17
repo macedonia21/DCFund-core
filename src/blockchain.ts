@@ -114,7 +114,7 @@ const getAdjustedDifficulty = (latestBlock: Block, aBlockchain: Block[]) => {
     if (timeTaken < timeExpected / 2) {
         return prevAdjustmentBlock.difficulty + 1;
     } else if (timeTaken > timeExpected * 2) {
-        return prevAdjustmentBlock.difficulty - 1;
+        return (prevAdjustmentBlock.difficulty > 0 ? prevAdjustmentBlock.difficulty - 1 : 0);
     } else {
         return prevAdjustmentBlock.difficulty;
     }
@@ -190,9 +190,6 @@ const generateNextBlock = (txId: string, signature: string, isApproved: boolean)
         blockData[0].isApproved = isApproved;
     }
     return generateRawNextBlock(blockData, isApproved);
-};
-
-const generateNextBlockWithTransaction = (receiverAddress: string, amount: number) => {
 };
 
 const findBlock = (index: number, previousHash: string, timestamp: number, data: Transaction[], blockBalances: Balance[],
@@ -320,34 +317,18 @@ const hashMatchesDifficulty = (hash: string, difficulty: number): boolean => {
 
 // Checks if the given blockchain is valid. Return the unspent txOuts if the chain is valid
 const isValidChain = (blockchainToValidate: Block[]): boolean => {
-    // console.log('isValidChain:');
-    // console.log(JSON.stringify(blockchainToValidate));
     const isValidGenesis = (block: Block): boolean => {
         return JSON.stringify(block) === JSON.stringify(genesisBlock);
     };
-    //
     if (!isValidGenesis(blockchainToValidate[0])) {
         return null;
     }
-    // /*
-    // Validate each block in the chain. The block is valid if the block structure is valid
-    //   and the transaction are valid
-    //  */
-    // let aUnspentTxOuts: UnspentTxOut[] = [];
-    //
     for (let i = 0; i < blockchainToValidate.length; i++) {
         const currentBlock: Block = blockchainToValidate[i];
         if (i !== 0 && !isValidNewBlock(blockchainToValidate[i], blockchainToValidate[i - 1])) {
             return null;
         }
-        //
-        //     aUnspentTxOuts = processTransactions(currentBlock.data, aUnspentTxOuts, currentBlock.index);
-        //     if (aUnspentTxOuts === null) {
-        //         console.log('invalid transactions in blockchain');
-        //         return null;
-        //     }
     }
-    // return aUnspentTxOuts;
     return true;
 };
 
@@ -368,8 +349,6 @@ const replaceChain = (newBlocks: Block[]) => {
         getAccumulatedDifficulty(newBlocks) > getAccumulatedDifficulty(getBlockchain())) {
         console.log('Received blockchain is valid. Replacing current blockchain with received blockchain');
         blockchain = newBlocks;
-        // setUnspentTxOuts(aUnspentTxOuts);
-        // updateTransactionPool(unspentTxOuts);
         broadcastLatest();
     } else {
         console.log('Received blockchain invalid');
