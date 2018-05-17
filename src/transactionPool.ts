@@ -1,7 +1,9 @@
 import * as _ from 'lodash';
-import {Transaction,
+import {
+    Transaction,
     // TxIn, UnspentTxOut,
-    validateTransaction} from './transaction';
+    validateTransaction
+} from './transaction';
 
 let transactionPool: Transaction[] = [];
 
@@ -10,9 +12,9 @@ const getTransactionPool = () => {
 };
 
 const getTransactionPoolForAddress = (address: string) => {
-        return _.cloneDeep(transactionPool).filter((transaction) => {
-            return transaction.txDCFs[0].wallet === address;
-        });
+    return _.cloneDeep(transactionPool).filter((transaction) => {
+        return transaction.txDCFs[0].wallet === address;
+    });
 };
 
 const addToTransactionPool = (tx: Transaction) => {
@@ -64,28 +66,14 @@ const updateTransactionPool = (transactions: Transaction[]) => {
     }
 };
 
-// const getTxPoolIns = (aTransactionPool: Transaction[]): TxIn[] => {
-//     return _(aTransactionPool)
-//         .map((tx) => tx.txIns)
-//         .flatten()
-//         .value();
-// };
-
 const isValidTxForPool = (tx: Transaction, aTtransactionPool: Transaction[]): boolean => {
-    // const txPoolIns: TxIn[] = getTxPoolIns(aTtransactionPool);
-//
-//     const containsTxIn = (txIns: TxIn[], txIn: TxIn) => {
-//         return _.find(txPoolIns, ((txPoolIn) => {
-//             return txIn.txOutIndex === txPoolIn.txOutIndex && txIn.txOutId === txPoolIn.txOutId;
-//         }));
-//     };
-//
-//     for (const txIn of tx.txIns) {
-//         if (containsTxIn(txPoolIns, txIn)) {
-//             console.log('txIn already found in the txPool');
-//             return false;
-//         }
-//     }
+    const dupTransaction = _.find(aTtransactionPool, ((transPool) => {
+        return transPool.id === tx.id;
+    }));
+    if (dupTransaction) {
+        console.log('transaction ' + tx.id + ' already found in the txPool');
+        return false;
+    }
     return true;
 };
 
