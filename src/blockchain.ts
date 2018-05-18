@@ -71,14 +71,14 @@ const genesisTransaction = {
         'month': 5, // Cutover month
         'year': 2018, // Cutover year
         'type': TransType.DEPOSIT,
-        'timestamp': new Date().getTime()
+        'timestamp': 1526614482095
     }],
     'isApproved': true,
     'signature': ''
 };
 genesisTransaction.id = getTransactionId(genesisTransaction);
 
-const genesisTimestamp = new Date().getTime();
+const genesisTimestamp = 1526614510362;
 const genesisBalance = new Balance(fundAddress, genesisFundBalance, 0);
 const balances: Balance[] = [genesisBalance];
 const genesisBlock: Block = new Block(

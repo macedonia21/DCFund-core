@@ -95,7 +95,8 @@ const validateBlockTransactions = (aTransactions: Transaction[], blockIndex: num
 const hasDuplicates = (txDCFs: TxDCF[]): boolean => {
     const groups = _.countBy(txDCFs, (txDCF: TxDCF) => {
         return (
-            txDCF.wallet + txDCF.walletKey + txDCF.walletOwner + txDCF.amount + txDCF.month + txDCF.year + txDCF.type
+            txDCF.wallet + txDCF.walletKey + txDCF.walletOwner +
+            txDCF.amount + txDCF.month + txDCF.year + txDCF.type + txDCF.timestamp
         );
     });
     return _(groups)
