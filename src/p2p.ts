@@ -2,9 +2,9 @@ import * as WebSocket from 'ws';
 import {Server} from 'ws';
 import {
     addBlockToChain, Block, getBlockchain, getLatestBlock,
-    handleReceivedTransaction, isValidBlockStructure, replaceChain
+    handleReceivedTransaction, handleRemovedTransaction, isValidBlockStructure, replaceChain
 } from './blockchain';
-import {Transaction} from './transaction';
+import {RemovedTransaction, Transaction} from './transaction';
 import {getTransactionPool} from './transactionPool';
 
 const sockets: WebSocket[] = [];
@@ -14,7 +14,8 @@ enum MessageType {
     QUERY_ALL = 1,
     RESPONSE_BLOCKCHAIN = 2,
     QUERY_TRANSACTION_POOL = 3,
-    RESPONSE_TRANSACTION_POOL = 4
+    RESPONSE_TRANSACTION_POOL = 4,
+    RESPONSE_TRANSACTION_REMOVE = 5
 }
 
 class Message {
@@ -98,6 +99,19 @@ const initMessageHandler = (ws: WebSocket) => {
                         }
                     });
                     break;
+                case MessageType.RESPONSE_TRANSACTION_REMOVE:
+                    const receivedRemovedTransactions: RemovedTransaction = JSONToObject<RemovedTransaction>(message.data);
+                    if (receivedRemovedTransactions === null) {
+                        console.log('invalid remove transaction received: %s', JSON.stringify(message.data));
+                    }
+                    try {
+                        handleRemovedTransaction(receivedRemovedTransactions);
+                        // if no error is thrown, transaction was indeed added to the pool
+                        // let's broadcast transaction pool
+                    } catch (e) {
+                        console.log(e.message);
+                    }
+                    break;
             }
         } catch (e) {
             console.log(e);
@@ -129,6 +143,11 @@ const queryTransactionPoolMsg = (): Message => ({
 const responseTransactionPoolMsg = (): Message => ({
     'type': MessageType.RESPONSE_TRANSACTION_POOL,
     'data': JSON.stringify(getTransactionPool())
+});
+
+const responseTransactionRemoveMsg = (removeTransMessage: RemovedTransaction): Message => ({
+    'type': MessageType.RESPONSE_TRANSACTION_REMOVE,
+    'data': removeTransMessage
 });
 
 const initErrorHandler = (ws: WebSocket) => {
@@ -188,4 +207,8 @@ const broadCastTransactionPool = () => {
     broadcast(responseTransactionPoolMsg());
 };
 
-export {connectToPeers, broadcastLatest, broadCastTransactionPool, initP2PServer, getSockets};
+const broadCastTransactionRemove = (removeTransMessage: RemovedTransaction) => {
+    broadcast(responseTransactionRemoveMsg(removeTransMessage));
+};
+
+export {connectToPeers, broadcastLatest, broadCastTransactionPool, broadCastTransactionRemove, initP2PServer, getSockets};

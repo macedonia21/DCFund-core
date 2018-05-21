@@ -2,9 +2,9 @@ import * as CryptoJS from 'crypto-js';
 import * as ecdsa from 'elliptic';
 import * as loadJsonFile from 'load-json-file';
 import * as _ from 'lodash';
-import {broadcastLatest, broadCastTransactionPool} from './p2p';
+import {broadcastLatest, broadCastTransactionPool, broadCastTransactionRemove} from './p2p';
 import {
-    getTransactionId, Transaction, TransType, TxDCF, validateBlockTransactions
+    getTransactionId, RemovedTransaction, Transaction, TransType, TxDCF, validateBlockTransactions
 } from './transaction';
 import {
     addToTransactionPool, getTransactionPool, removeFromTransactionPool, updateTransactionPool
@@ -246,7 +246,10 @@ const removeTransaction = (txId: string, signature: string): boolean => {
         }
     }
     removeFromTransactionPool(tx);
-    broadCastTransactionPool();
+    const removedTransaction: RemovedTransaction = new RemovedTransaction();
+    removedTransaction.removedTransID = tx.id;
+    removedTransaction.signature = signature;
+    broadCastTransactionRemove(removedTransaction);
     return true;
 };
 
@@ -362,6 +365,10 @@ const handleReceivedTransaction = (transaction: Transaction) => {
     addToTransactionPool(transaction);
 };
 
+const handleRemovedTransaction = (removedTransaction: RemovedTransaction) => {
+    removeTransaction(removedTransaction.removedTransID, removedTransaction.signature);
+};
+
 export {
     Balance,
     Block,
@@ -372,6 +379,7 @@ export {
     generateRawNextBlock,
     generateNextBlock,
     handleReceivedTransaction,
+    handleRemovedTransaction,
     getBalances,
     getAccountBalance,
     isValidBlockStructure,

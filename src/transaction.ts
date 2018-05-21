@@ -40,6 +40,11 @@ class Transaction {
     public signature: string;
 }
 
+class RemovedTransaction {
+    public removedTransID: string;
+    public signature: string;
+}
+
 const getTransactionId = (transaction: Transaction): string => {
     const txDCFContent: string = transaction.txDCFs
         .map((txDCF: TxDCF) => {
@@ -193,5 +198,6 @@ const isValidAddress = (address: string): boolean => {
 };
 
 export {
-    getTransactionId, isValidAddress, validateTransaction, validateBlockTransactions, Transaction, TransType, TxDCF
+    getTransactionId, isValidAddress, validateTransaction, validateBlockTransactions,
+    RemovedTransaction, Transaction, TransType, TxDCF
 };
