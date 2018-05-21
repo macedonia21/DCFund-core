@@ -147,7 +147,7 @@ const responseTransactionPoolMsg = (): Message => ({
 
 const responseTransactionRemoveMsg = (removeTransMessage: RemovedTransaction): Message => ({
     'type': MessageType.RESPONSE_TRANSACTION_REMOVE,
-    'data': removeTransMessage
+    'data': JSON.stringify(removeTransMessage)
 });
 
 const initErrorHandler = (ws: WebSocket) => {
