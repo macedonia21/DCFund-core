@@ -84,7 +84,7 @@ const initHttpServer = (myHttpPort: number) => {
 
     app.get('/balance/:address', (req, res) => {
         const address = req.params.address;
-        const balance: Balance = getAccountBalance(address);
+        const balance: Balance[] = getAccountBalance(address);
         res.send(balance);
     });
 

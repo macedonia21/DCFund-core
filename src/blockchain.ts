@@ -60,7 +60,7 @@ const calculateHash = (index: number, previousHash: string, timestamp: number, d
 
 const fundAddress = loadJsonFile.sync(FUND_KEY).address;
 const fundPubKey = loadJsonFile.sync(FUND_KEY).publicKey;
-const genesisFundBalance = 300;
+const genesisFundBalance = 0;
 const genesisTransaction = {
     'id': '',
     'txDCFs': [{
@@ -144,6 +144,10 @@ const generateRawNextBlock = (blockData: Transaction[], isApproved: boolean) => 
                     updateBalance(txDCF, balance, fundBalance);
                     blockBalances.push(balance);
                 }
+                // Valid balance
+                if (balance.lend < 0 || fundBalance.lend < 0 || (fundBalance.deposit - fundBalance.lend) < 0) {
+                    return null;
+                }
             }
         }
     }
@@ -209,15 +213,26 @@ const getBalances = (): Balance[] => {
     return lastestBlock.balances;
 };
 
-const getAccountBalance = (address: string): Balance => {
+const getAccountBalance = (address: string): Balance[] => {
     const lastestBlock: Block = getLatestBlock();
+    const returnBalances: Balance[] = [];
+    // Fund balance
+    let fundBalance = _.find(lastestBlock.balances, (eachBalance: Balance) => {
+        return eachBalance.wallet === fundAddress;
+    });
+    if (!fundBalance) {
+        fundBalance = new Balance(fundAddress, 0, 0);
+    }
+    returnBalances.push(fundBalance);
+    // User balance
     let balance = _.find(lastestBlock.balances, (eachBalance: Balance) => {
         return eachBalance.wallet === address;
     });
     if (!balance) {
         balance = new Balance(address, 0, 0);
     }
-    return balance;
+    returnBalances.push(balance);
+    return returnBalances;
 };
 
 const sendTransaction = (wallet: string, walletKey: string, walletOwner: string, amount: number, month: number, year: number, type: TransType): Transaction => {
@@ -229,7 +244,7 @@ const sendTransaction = (wallet: string, walletKey: string, walletOwner: string,
 };
 
 const removeTransaction = (txId: string, signature: string): boolean => {
-    console.log('blockchain sendTransaction');
+    console.log('blockchain removeTransaction');
 
     const tx: Transaction = getTransactionPool().find((transaction: Transaction) => {
         return transaction.id === txId;
