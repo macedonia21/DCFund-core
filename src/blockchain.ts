@@ -145,7 +145,8 @@ const generateRawNextBlock = (blockData: Transaction[], isApproved: boolean) => 
                     blockBalances.push(balance);
                 }
                 // Valid balance
-                if (balance.lend < 0 || fundBalance.lend < 0 || (fundBalance.deposit - fundBalance.lend) < 0) {
+                if (balance.deposit < 0 || balance.lend < 0 || fundBalance.lend < 0 ||
+                    (fundBalance.deposit - fundBalance.lend) < 0) {
                     return null;
                 }
             }
@@ -187,6 +188,22 @@ const generateNextBlock = (txId: string, signature: string, isApproved: boolean)
 
     const key = ec.keyFromPublic(fundPubKey, 'hex');
     const validSignature: boolean = key.verify(txId, signature);
+    if (!validSignature) {
+        return null;
+    } else {
+        blockData[0].signature = signature;
+        blockData[0].isApproved = isApproved;
+    }
+    return generateRawNextBlock(blockData, isApproved);
+};
+
+const generateNextWithdrawBlock = (blockData: Transaction[], signature: string, isApproved: boolean) => {
+    if (!blockData || blockData.length === 0) {
+        return null;
+    }
+
+    const key = ec.keyFromPublic(fundPubKey, 'hex');
+    const validSignature: boolean = key.verify(blockData[0].id, signature);
     if (!validSignature) {
         return null;
     } else {
@@ -393,6 +410,7 @@ export {
     removeTransaction,
     generateRawNextBlock,
     generateNextBlock,
+    generateNextWithdrawBlock,
     handleReceivedTransaction,
     handleRemovedTransaction,
     getBalances,
