@@ -2,13 +2,12 @@ import * as bodyParser from 'body-parser';
 import * as express from 'express';
 import * as _ from 'lodash';
 import {
-    Balance, Block, generateNextBlock, generateNextWithdrawBlock, generateRawNextBlock, getAccountBalance, getBalances,
+    Balance, Block, generateNextBlock, generateRawNextBlock, getAccountBalance, getBalances,
     getBlockchain, removeTransaction, sendTransaction
 } from './blockchain';
 import {connectToPeers, getSockets, initP2PServer} from './p2p';
 import {Transaction} from './transaction';
 import {getTransactionPool, getTransactionPoolForAddress} from './transactionPool';
-import {createTransaction, createTransactionWTime} from './wallet';
 
 const httpPort: number = parseInt(process.env.HTTP_PORT) || 3001;
 const p2pPort: number = parseInt(process.env.P2P_PORT) || 6001;
@@ -28,7 +27,7 @@ const initHttpServer = (myHttpPort: number) => {
     });
 
     app.get('/block/:hash', (req, res) => {
-        const block = _.find(getBlockchain(), {'hash': req.params.hash});
+        const block = _.find(getBlockchain(), {'hash' : req.params.hash});
         res.send(block);
     });
 
@@ -53,7 +52,7 @@ const initHttpServer = (myHttpPort: number) => {
     });
 
     app.post('/mineRawBlock', (req, res) => {
-        if (req.body.data === null) {
+        if (req.body.data == null) {
             res.send('data parameter is missing');
             return;
         }
@@ -75,39 +74,6 @@ const initHttpServer = (myHttpPort: number) => {
             res.status(400).send('could not generate block');
         } else {
             res.send(newBlock);
-        }
-    });
-
-    app.post('/confirmWithdrawBlock', (req, res) => {
-        console.log('mineWithdrawBlock');
-        try {
-            const wallet = req.body.wallet;
-            const walletKey = req.body.walletKey;
-            const walletOwner = req.body.walletOwner;
-            const amount = req.body.amount;
-            const month = req.body.month;
-            const year = req.body.year;
-            const type = req.body.type;
-            const time = req.body.time;
-
-            const signature = req.body.signature;
-            const isApproved = req.body.isApproved;
-
-            if (wallet === undefined || amount === undefined || type === undefined) {
-                throw Error('invalid address or amount');
-            }
-
-            const tx: Transaction = createTransactionWTime(wallet, walletKey, walletOwner, amount, month, year, type, time);
-            const blockData: Transaction[] = [tx];
-            const newBlock: Block = generateNextWithdrawBlock(blockData, signature, isApproved);
-            if (newBlock === null) {
-                res.status(400).send('could not generate block');
-            } else {
-                res.send(newBlock);
-            }
-        } catch (e) {
-            console.log(e.message);
-            res.status(400).send(e.message);
         }
     });
 
@@ -177,7 +143,7 @@ const initHttpServer = (myHttpPort: number) => {
     });
 
     app.post('/stop', (req, res) => {
-        res.send({'msg': 'stopping server'});
+        res.send({'msg' : 'stopping server'});
         process.exit();
     });
 

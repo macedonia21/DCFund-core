@@ -14,20 +14,6 @@ const createTransaction = (wallet: string, walletKey: string, walletOwner: strin
     return tx;
 };
 
-const createTransactionWTime = (wallet: string, walletKey: string, walletOwner: string,
-                                amount: number, month: number, year: number, type: TransType, time: number): Transaction => {
-    const unsignedTxDCF: TxDCF = new TxDCF(wallet, walletKey, walletOwner, amount, month, year, type, time);
-
-    const tx: Transaction = new Transaction();
-    tx.txDCFs = [unsignedTxDCF];
-    tx.id = getTransactionId(tx);
-    tx.isApproved = null;
-    tx.signature = '';
-    console.log(tx);
-    return tx;
-};
-
 export {
     createTransaction,
-    createTransactionWTime
 };
