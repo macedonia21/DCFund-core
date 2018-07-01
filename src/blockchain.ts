@@ -197,6 +197,22 @@ const generateNextBlock = (txId: string, signature: string, isApproved: boolean)
     return generateRawNextBlock(blockData, isApproved);
 };
 
+const generateNextWithdrawBlock = (blockData: Transaction[], signature: string, isApproved: boolean) => {
+    if (!blockData || blockData.length === 0) {
+        return null;
+    }
+
+    const key = ec.keyFromPublic(fundPubKey, 'hex');
+    const validSignature: boolean = key.verify(blockData[0].id, signature);
+    if (!validSignature) {
+        return null;
+    } else {
+        blockData[0].signature = signature;
+        blockData[0].isApproved = isApproved;
+    }
+    return generateRawNextBlock(blockData, isApproved);
+};
+
 const findBlock = (index: number, previousHash: string, timestamp: number, data: Transaction[], blockBalances: Balance[],
                    difficulty: number): Block => {
     let nonce = 0;
@@ -394,6 +410,7 @@ export {
     removeTransaction,
     generateRawNextBlock,
     generateNextBlock,
+    generateNextWithdrawBlock,
     handleReceivedTransaction,
     handleRemovedTransaction,
     getBalances,
